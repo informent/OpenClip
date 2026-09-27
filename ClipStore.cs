@@ -12,5 +12,6 @@ public sealed class ClipStore
     public bool Add(string text) { if (string.IsNullOrWhiteSpace(text) || Items.Any(x => x.Text == text)) return false; Items.Insert(0, new ClipItem(Guid.NewGuid().ToString("N"), DateTime.Now, text, false)); Save(); return true; }
     public bool TogglePin(string id) { var index = Items.FindIndex(x => x.Id == id); if (index < 0) return false; Items[index] = Items[index] with { IsPinned = !Items[index].IsPinned }; Save(); return true; }
     public int RemoveUnpinned() { var old = Items.Count; Items.RemoveAll(x => !x.IsPinned); Save(); return old - Items.Count; }
+    public int ClearAll(bool keepPinned) { var old = Items.Count; if (keepPinned) Items.RemoveAll(x => !x.IsPinned); else Items.Clear(); Save(); return old - Items.Count; }
     public IReadOnlyList<ClipItem> Search(string query) => Items.Where(x => string.IsNullOrWhiteSpace(query) || x.Text.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
 }
