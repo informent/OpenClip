@@ -10,6 +10,10 @@ var secureRoot = Path.Combine(Path.GetTempPath(), "openclip-secure-" + Guid.NewG
 if (secure.Add("password=hunter2") || secure.Add("-----BEGIN PRIVATE KEY-----\nsecret") || secure.Add("4111 1111 1111 1111")) throw new Exception("Sensitive clipboard content was persisted.");
 secure.Add("first"); secure.TogglePin(secure.Items[0].Id); secure.Add("second"); secure.Add("third");
 if (secure.Items.Count != 2 || secure.Items.All(x => x.Text != "first") || secure.Items.All(x => x.Text != "third")) throw new Exception("Bounded history did not preserve pinned content.");
-secure.Add("fourth"); File.WriteAllText(securePath, "{ damaged json"); var recovered = new ClipStore(securePath, 2); recovered.Load();
-if (recovered.Items.Count == 0 || recovered.Items.All(x => x.Text != "first")) throw new Exception("Backup recovery failed.");
+secure.Add("fourth"); File.WriteAllText(securePath, "{ damaged json"); var recovered = new ClipStore(securePath, 3); recovered.Load();
+if (recovered.Items.Count == 0 || recovered.Items.All(x => x.Text != "first")) throw new Exception("Backup recovery failed."); recovered.Add("after recovery"); var recoveredAgain = new ClipStore(securePath, 3); recoveredAgain.Load(); if (recoveredAgain.Items.All(x => x.Text != "first") || recoveredAgain.Items.All(x => x.Text != "after recovery")) throw new Exception("Saving after recovery destroyed valid history.");
 Directory.Delete(secureRoot, true); Console.WriteLine("PASS: sensitive-content exclusion, bounded history, atomic save, and backup recovery");
+
+var sharedRoot = Path.Combine(Path.GetTempPath(), "openclip-shared-" + Guid.NewGuid().ToString("N")); var sharedPath = Path.Combine(sharedRoot, "clips.json"); using var firstStore = new ClipStore(sharedPath); using var secondStore = new ClipStore(sharedPath); firstStore.Load(); secondStore.Load(); firstStore.Add("from first process"); secondStore.Add("from second process"); using var combined = new ClipStore(sharedPath); combined.Load();
+if (combined.Items.Count != 2 || combined.Items.All(x => x.Text != "from first process") || combined.Items.All(x => x.Text != "from second process")) throw new Exception("Multi-instance save lost clipboard history.");
+Directory.Delete(sharedRoot, true); Console.WriteLine("PASS: serialized multi-instance mutations preserve both histories");

@@ -1,6 +1,17 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$out = Join-Path $root 'test-output'
-dotnet publish (Join-Path $root 'OpenClip.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $out --nologo | Out-Host
-$exe = Join-Path $out 'OpenClip.exe'; if (!(Test-Path -LiteralPath $exe)) { throw 'OpenClip executable missing' }
-$p = Start-Process -FilePath $exe -PassThru; Start-Sleep -Milliseconds 1200; if ($p.HasExited) { throw "OpenClip exited with code $($p.ExitCode)" }; Stop-Process -Id $p.Id -Force; Write-Output 'PASS: build, publish, and launch (OpenClip)'
+$out = Join-Path $root ('test-output-' + [Guid]::NewGuid().ToString('N'))
+$p = $null
+try {
+    dotnet publish (Join-Path $root 'OpenClip.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $out --nologo | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+    $exe = Join-Path $out 'OpenClip.exe'; if (!(Test-Path -LiteralPath $exe)) { throw 'OpenClip executable missing' }
+    $p = Start-Process -FilePath $exe -PassThru; Start-Sleep -Milliseconds 1200; if ($p.HasExited) { throw "OpenClip exited with code $($p.ExitCode)" }; Stop-Process -Id $p.Id -Force; Wait-Process -Id $p.Id -ErrorAction SilentlyContinue; Write-Output 'PASS: clean build, publish, and launch (OpenClip)'
+}
+finally {
+    if ($null -ne $p -and !$p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; Wait-Process -Id $p.Id -ErrorAction SilentlyContinue }
+    for ($attempt = 0; $attempt -lt 25 -and (Test-Path -LiteralPath $out); $attempt++) {
+        try { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction Stop }
+        catch { if ($attempt -eq 24) { throw }; Start-Sleep -Milliseconds 200 }
+    }
+}
