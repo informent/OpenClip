@@ -1,4 +1,12 @@
 using OpenClip;
+var older = new ClipItem("older", DateTime.UnixEpoch, "match older", false);
+var newer = new ClipItem("newer", DateTime.UnixEpoch.AddMinutes(1), "match newer", false);
+var beforeCapture = ClipListProjection.Build(new[] { newer, older }, " match ");
+if (beforeCapture.Count != 2 || beforeCapture[1].Item.Id != "older") throw new Exception("Filtered list rows lost their clip identity.");
+var afterCapture = ClipListProjection.Build(new[] { new ClipItem("captured", DateTime.UnixEpoch.AddMinutes(2), "match captured", false), newer, older }, "match");
+var restoredSelection = afterCapture.FirstOrDefault(row => row.Item.Id == beforeCapture[1].Item.Id);
+if (restoredSelection?.Item.Text != "match older" || afterCapture[1].Item.Id == "older") throw new Exception("Refreshing history changed the selected clip identity.");
+Console.WriteLine("PASS: filtered clip rows retain stable identity after history reorder");
 var root = Path.Combine(Path.GetTempPath(), "openclip-" + Guid.NewGuid().ToString("N")); var store = new ClipStore(Path.Combine(root, "clips.json"));
 if (!store.Add("alpha") || store.Add("alpha")) throw new Exception("Duplicate clipboard content was accepted.");
 var id = store.Items[0].Id; if (!store.TogglePin(id) || !store.Items[0].IsPinned) throw new Exception("Pin toggle failed.");

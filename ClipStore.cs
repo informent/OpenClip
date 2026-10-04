@@ -7,6 +7,23 @@ using System.Text.RegularExpressions;
 namespace OpenClip;
 
 public sealed record ClipItem(string Id, DateTime CapturedAt, string Text, bool IsPinned);
+public sealed record ClipListRow(ClipItem Item, string DisplayText)
+{
+    public override string ToString() => DisplayText;
+}
+
+public static class ClipListProjection
+{
+    public static IReadOnlyList<ClipListRow> Build(IEnumerable<ClipItem> items, string? query)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var normalizedQuery = query?.Trim() ?? string.Empty;
+        return items
+            .Where(item => normalizedQuery.Length == 0 || item.Text.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+            .Select(item => new ClipListRow(item, $"{item.CapturedAt:g}    {item.Text.Replace(Environment.NewLine, " ")}"))
+            .ToArray();
+    }
+}
 
 public sealed class ClipStore : IDisposable
 {
