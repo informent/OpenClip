@@ -6,4 +6,6 @@ Clipboard history is bounded to prevent silent database growth, while pinned ent
 
 Version 1.1 serializes database mutations across OpenClip processes and reloads the latest valid history inside the lock before every change. Two running instances can no longer silently overwrite each other's clips, abandoned process locks recover safely, and a damaged primary file is never copied over the last valid recovery database.
 
+Version 1.2 binds history rows to stable clip identities, so adding a new clip or refreshing the filtered list cannot redirect selection-based preview, pin, or copy actions to a different item.
+
 MIT licensed.

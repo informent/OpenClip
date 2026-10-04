@@ -1,0 +1,37 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: 10.0.x }
+      - name: Run tests
+        run: dotnet run --project tests/ClipStoreTests.csproj -c Release --nologo
+      - name: Publish self-contained executable
+        run: dotnet publish OpenClip.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release\OpenClip --nologo
+      - name: Verify packaged executable launch
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'release\OpenClip\OpenClip.exe'
+          if (!(Test-Path -LiteralPath $exe)) { throw 'OpenClip.exe missing from package output.' }
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Milliseconds 1500
+          $process.Refresh()
+          if ($process.HasExited) { throw "Packaged OpenClip exited with code $($process.ExitCode)." }
+          Stop-Process -Id $process.Id -Force
+      - name: Add documentation
+        shell: pwsh
+        run: Copy-Item README.md,LICENSE release\OpenClip
+      - name: Create ZIP
+        shell: pwsh
+        run: Compress-Archive -Path release\OpenClip\* -DestinationPath OpenClip-${{ github.ref_name }}-win-x64.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: OpenClip-${{ github.ref_name }}-win-x64.zip
